@@ -69,3 +69,9 @@ export type EffectParamsState = {
 
 // Represents an RGB color
 export type Color = [number, number, number];
+
+export type Preset = {
+  name: string;
+  effectId: EffectType;
+  params: EffectParamsState;
+};

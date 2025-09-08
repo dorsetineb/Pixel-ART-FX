@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { EffectType, Effect, EffectParamsState, EffectParam } from '../types';
+import { EffectType, Effect, EffectParamsState, EffectParam, Preset } from '../types';
 import { EFFECTS } from '../constants';
-import { IconUpload, IconDownload, IconWand } from './Icons';
+import { IconUpload, IconDownload, IconSave, IconTrash } from './Icons';
 import Button from './Button';
 import { Slider, ToggleSwitch, ColorPicker, TextInput, SelectButtons } from './Slider';
+
+const PRESET_STORAGE_KEY = 'fotif-ai-presets';
 
 const ImageProcessor: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
@@ -11,12 +13,37 @@ const ImageProcessor: React.FC = () => {
   const [effectParams, setEffectParams] = useState<EffectParamsState>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
 
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const processedCanvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedEffect = EFFECTS.find(e => e.id === activeEffect) || EFFECTS[0];
+
+  // Load presets from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedPresets = localStorage.getItem(PRESET_STORAGE_KEY);
+      if (savedPresets) {
+        setPresets(JSON.parse(savedPresets));
+      }
+    } catch (e) {
+      console.error("Failed to load presets from localStorage", e);
+    }
+  }, []);
+
+  // Save presets to localStorage whenever they change
+  useEffect(() => {
+    try {
+        localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+    } catch (e) {
+        console.error("Failed to save presets to localStorage", e);
+    }
+  }, [presets]);
+
 
   useEffect(() => {
     const initialParams: EffectParamsState = {};
@@ -101,6 +128,40 @@ const ImageProcessor: React.FC = () => {
   
   const handleParamChange = (paramId: string, value: number | string | boolean) => {
     setEffectParams(prev => ({ ...prev, [paramId]: value }));
+  };
+
+  const handleSavePreset = () => {
+    if (!newPresetName.trim()) {
+      setError("Preset name cannot be empty.");
+      return;
+    }
+    const newPreset: Preset = {
+      name: newPresetName.trim(),
+      effectId: activeEffect,
+      params: { ...effectParams },
+    };
+    setPresets(prev => {
+        // Overwrite if name exists, otherwise add new
+        const existingIndex = prev.findIndex(p => p.name === newPreset.name);
+        if (existingIndex > -1) {
+            const updatedPresets = [...prev];
+            updatedPresets[existingIndex] = newPreset;
+            return updatedPresets;
+        }
+        return [...prev, newPreset];
+    });
+    setNewPresetName('');
+    setIsSavingPreset(false);
+    setError(null);
+  };
+
+  const handleApplyPreset = (preset: Preset) => {
+    setActiveEffect(preset.effectId);
+    setEffectParams(preset.params);
+  };
+
+  const handleDeletePreset = (presetName: string) => {
+    setPresets(prev => prev.filter(p => p.name !== presetName));
   };
 
   const renderParamControl = (param: EffectParam) => {
@@ -192,17 +253,65 @@ const ImageProcessor: React.FC = () => {
               <canvas ref={processedCanvasRef} className="w-full h-auto rounded-lg shadow-lg bg-gray-800" />
               {isLoading && (
                  <div className="absolute inset-0 bg-black bg-opacity-70 flex justify-center items-center rounded-lg">
-                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin" style={{'borderTopColor': '#22d3ee'}}></div>
+                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin" style={{borderTopColor: '#22d3ee'}}></div>
                  </div>
               )}
             </div>
           </div>
           <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl">
-              <div className="flex items-center gap-4 mb-6">
-                 <IconWand className="w-8 h-8 text-cyan-400" />
-                 <h2 className="text-3xl font-bold">Effect Controls</h2>
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-white mb-4">Presets</h3>
+                {presets.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {presets.map((preset) => (
+                      <div key={preset.name} className="group relative">
+                        <button
+                          onClick={() => handleApplyPreset(preset)}
+                          className="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-gray-700 text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500"
+                        >
+                          {preset.name}
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(preset.name)}
+                          className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-500"
+                          aria-label={`Delete ${preset.name} preset`}
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No presets saved yet. Adjust controls and save one!</p>
+                )}
               </div>
               
+              <div className="flex items-center gap-4 mb-4">
+                 <h2 className="text-3xl font-bold">Effect Controls</h2>
+                 {!isSavingPreset && (
+                    <Button onClick={() => setIsSavingPreset(true)} variant="secondary" icon={<IconSave className="w-5 h-5 mr-2" />}>
+                        Save as Preset
+                    </Button>
+                 )}
+              </div>
+              
+              {isSavingPreset && (
+                <div className="bg-gray-700 p-4 rounded-lg mb-6 flex flex-col sm:flex-row items-center gap-3">
+                    <div className="w-full sm:flex-grow">
+                        <TextInput
+                            label="Preset Name"
+                            value={newPresetName}
+                            onChange={setNewPresetName}
+                            placeholder="e.g., Retro Vibe"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button onClick={handleSavePreset}>Confirm Save</Button>
+                        <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancel</Button>
+                    </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                 {EFFECTS.map(effect => (
                   <button

@@ -5,16 +5,6 @@ type IconProps = {
   className?: string;
 };
 
-export const IconPhoto: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-        <line x1="15" y1="8" x2="15.01" y2="8" />
-        <rect x="4" y="4" width="16" height="16" rx="3" />
-        <path d="M4 15l4 -4a3 5 0 0 1 3 0l5 5" />
-        <path d="M14 14l1 -1a3 5 0 0 1 3 0l2 2" />
-    </svg>
-);
-
 export const IconUpload: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -33,13 +23,22 @@ export const IconDownload: React.FC<IconProps> = ({ className }) => (
     </svg>
 );
 
-export const IconWand: React.FC<IconProps> = ({ className }) => (
+export const IconSave: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-        <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3" />
-        <line x1="12" y1="12" x2="20" y2="7.5" />
-        <line x1="12" y1="12" x2="12" y2="21" />
-        <line x1="12" y1="12" x2="4" y2="7.5" />
-        <line x1="16" y1="5.25" x2="8" y2="9.75" />
+        <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+        <circle cx="12" cy="14" r="2" />
+        <polyline points="14 4 14 8 8 8 8 4" />
+    </svg>
+);
+
+export const IconTrash: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} width="24" height="24" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <line x1="4" y1="7" x2="20" y2="7" />
+        <line x1="10" y1="11" x2="10" y2="17" />
+        <line x1="14" y1="11" x2="14" y2="17" />
+        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
     </svg>
 );
