@@ -1,0 +1,5 @@
+{
+  "name": "Pixel Art FX",
+  "description": "An application to apply various pixelated and dithered effects to user-uploaded images, transforming them into retro-style art.",
+  "requestFramePermissions": []
+}
