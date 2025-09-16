@@ -11,168 +11,44 @@ const hexToRgb = (hex: string): Color | null => {
     ] : null;
 };
 
-const findClosestColor = (color: Color, palette: Color[]): Color => {
-  let closestColor = palette[0];
-  let minDistance = Infinity;
-
-  for (const paletteColor of palette) {
-    const distance =
-      Math.pow(color[0] - paletteColor[0], 2) +
-      Math.pow(color[1] - paletteColor[1], 2) +
-      Math.pow(color[2] - paletteColor[2], 2);
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestColor = paletteColor;
-    }
-  }
-  return closestColor;
+// Helper to get pixel from source data, handling boundaries
+const getPixel = (data: Uint8ClampedArray, width: number, x: number, y: number): Color => {
+    x = Math.round(x);
+    y = Math.round(y);
+    // Clamp coordinates to be within bounds
+    x = Math.max(0, Math.min(x, width - 1));
+    const i = (y * width + x) * 4;
+    return [data[i], data[i+1], data[i+2]];
 };
 
-// Improved color dithering algorithm (Floyd-Steinberg)
-const applyDitheringColor = (
-  imageData: ImageData,
-  width: number,
-  height: number,
-  palette: Color[],
-  factor: number
-) => {
-  const d = imageData.data;
-  const pixelData = new Float32Array(width * height * 3);
 
-  // Initialize float array with original image data for processing
-  for (let i = 0; i < width * height; i++) {
-    pixelData[i * 3]     = d[i * 4];
-    pixelData[i * 3 + 1] = d[i * 4 + 1];
-    pixelData[i * 3 + 2] = d[i * 4 + 2];
-  }
+const rgbToCmyk = (r: number, g: number, b: number): [number, number, number, number] => {
+    let c = 1 - (r / 255);
+    let m = 1 - (g / 255);
+    let y = 1 - (b / 255);
+    const k = Math.min(c, m, y);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 3;
-      const oldR = pixelData[i];
-      const oldG = pixelData[i + 1];
-      const oldB = pixelData[i + 2];
-
-      const oldColor: Color = [oldR, oldG, oldB];
-      const newColor = findClosestColor(oldColor, palette);
-      
-      const outIdx = (y * width + x) * 4;
-      d[outIdx]     = newColor[0];
-      d[outIdx + 1] = newColor[1];
-      d[outIdx + 2] = newColor[2];
-
-      const errR = oldR - newColor[0];
-      const errG = oldG - newColor[1];
-      const errB = oldB - newColor[2];
-      
-      const diffusionFactor = factor / 16.0;
-
-      let neighborIndex;
-      // Right: (x+1, y)
-      if (x + 1 < width) {
-        neighborIndex = i + 3;
-        pixelData[neighborIndex]     += errR * 7 * diffusionFactor;
-        pixelData[neighborIndex + 1] += errG * 7 * diffusionFactor;
-        pixelData[neighborIndex + 2] += errB * 7 * diffusionFactor;
-      }
-      // Bottom-left: (x-1, y+1)
-      if (y + 1 < height && x > 0) {
-        neighborIndex = i + (width * 3) - 3;
-        pixelData[neighborIndex]     += errR * 3 * diffusionFactor;
-        pixelData[neighborIndex + 1] += errG * 3 * diffusionFactor;
-        pixelData[neighborIndex + 2] += errB * 3 * diffusionFactor;
-      }
-      // Bottom: (x, y+1)
-      if (y + 1 < height) {
-        neighborIndex = i + (width * 3);
-        pixelData[neighborIndex]     += errR * 5 * diffusionFactor;
-        pixelData[neighborIndex + 1] += errG * 5 * diffusionFactor;
-        pixelData[neighborIndex + 2] += errB * 5 * diffusionFactor;
-      }
-      // Bottom-right: (x+1, y+1)
-      if (y + 1 < height && x + 1 < width) {
-        neighborIndex = i + (width * 3) + 3;
-        pixelData[neighborIndex]     += errR * 1 * diffusionFactor;
-        pixelData[neighborIndex + 1] += errG * 1 * diffusionFactor;
-        pixelData[neighborIndex + 2] += errB * 1 * diffusionFactor;
-      }
+    if (k === 1) { // black
+        return [0, 0, 0, 1];
     }
-  }
+
+    c = (c - k) / (1 - k);
+    m = (m - k) / (1 - k);
+    y = (y - k) / (1 - k);
+
+    return [c, m, y, k];
 };
 
-// B&W dithering function with custom color support
-const applyDitheringBW = (
-  imageData: ImageData,
-  width: number,
-  height: number,
-  factor: number,
-  darkColor: Color,
-  lightColor: Color
-) => {
-  const d = imageData.data;
-  const grayscale = new Float32Array(width * height);
-
-  // Convert image to grayscale first for proper dithering
-  for (let i = 0; i < d.length; i += 4) {
-    const index = i / 4;
-    const brightness = 0.2126 * d[i] + 0.7152 * d[i+1] + 0.0722 * d[i+2];
-    grayscale[index] = brightness;
-  }
-  
-  const [darkR, darkG, darkB] = darkColor;
-  const [lightR, lightG, lightB] = lightColor;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
-      const oldPixel = grayscale[i];
-      const useLightColor = oldPixel > 127.5;
-      
-      const newPixelValue = useLightColor ? 255 : 0;
-      
-      const outIdx = i * 4;
-      d[outIdx]     = useLightColor ? lightR : darkR;
-      d[outIdx + 1] = useLightColor ? lightG : darkG;
-      d[outIdx + 2] = useLightColor ? lightB : darkB;
-
-      const quantError = oldPixel - newPixelValue;
-      const diffusionError = quantError * factor / 16.0;
-
-      // Propagate error to neighbors
-      if (x + 1 < width) {
-        grayscale[i + 1] += diffusionError * 7;
-      }
-      if (y + 1 < height) {
-        if (x > 0) {
-          grayscale[i + width - 1] += diffusionError * 3;
-        }
-        grayscale[i + width] += diffusionError * 5;
-        if (x + 1 < width) {
-          grayscale[i + width + 1] += diffusionError * 1;
-        }
-      }
-    }
-  }
-}
-
-// --- Palettes ---
-
-const JUSTICE_PALETTE: Color[] = [
-  [13, 33, 108],   // Dark Blue
-  [255, 147, 0],   // Orange
-  [215, 235, 188], // Light Green
-  [0, 0, 0],       // Black
-];
 
 // --- Effect Definitions ---
 
 export const EFFECTS: Effect[] = [
   {
     id: EffectType.PIXELATE,
-    name: 'Pixelate',
-    description: 'Group pixels into solid colored blocks.',
+    name: 'Pixelar',
+    description: 'Agrupe pixels em blocos de cores sólidas.',
     params: [
-      { id: 'pixelSize', name: 'Pixel Size', type: 'slider', min: 2, max: 50, step: 1, defaultValue: 10 },
+      { id: 'pixelSize', name: 'Tamanho do Pixel', type: 'slider', min: 2, max: 50, step: 1, defaultValue: 10 },
     ],
     processor: (ctx, width, height, params) => {
         const pixelSize = Math.max(1, params.pixelSize as number);
@@ -214,65 +90,262 @@ export const EFFECTS: Effect[] = [
     },
   },
   {
-    id: EffectType.DITHER_BW,
-    name: 'Dither (Custom)',
-    description: 'Create a 1-bit look using two custom colors.',
+    id: EffectType.HALFTONE_SQUARES,
+    name: 'Meio-tom (Quadrados)',
+    description: 'Recria a imagem usando quadrados de tamanhos variados, como em impressões antigas.',
     params: [
-        { id: 'factor', name: 'Diffusion', type: 'slider', min: 0.1, max: 1.0, step: 0.05, defaultValue: 1.0 },
-        { id: 'darkColor', name: 'Dark Color', type: 'color', defaultValue: '#000000' },
-        { id: 'lightColor', name: 'Light Color', type: 'color', defaultValue: '#FFFFFF' },
+        { id: 'gridSize', name: 'Tamanho da Grade', type: 'slider', min: 2, max: 40, step: 1, defaultValue: 10 },
+        { id: 'invert', name: 'Inverter', type: 'toggle', defaultValue: false },
+        { id: 'squareColor', name: 'Cor do Quadrado', type: 'color', defaultValue: '#000000' },
+        { id: 'bgColor', name: 'Cor de Fundo', type: 'color', defaultValue: '#FFFFFF' },
     ],
     processor: (ctx, width, height, params) => {
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const darkColor = hexToRgb(params.darkColor as string) || [0, 0, 0];
-        const lightColor = hexToRgb(params.lightColor as string) || [255, 255, 255];
-        applyDitheringBW(imageData, width, height, params.factor as number, darkColor, lightColor);
-        ctx.putImageData(imageData, 0, 0);
-    },
-  },
-  {
-    id: EffectType.DITHER_PALETTE,
-    name: 'Dither (Justice Palette)',
-    description: 'Dither with a specific retro color palette.',
-    params: [
-        { id: 'factor', name: 'Diffusion', type: 'slider', min: 0.1, max: 1.0, step: 0.05, defaultValue: 1.0 },
-    ],
-    processor: (ctx, width, height, params) => {
-        const imageData = ctx.getImageData(0, 0, width, height);
-        applyDitheringColor(imageData, width, height, JUSTICE_PALETTE, params.factor as number);
-        ctx.putImageData(imageData, 0, 0);
-    },
-  },
-  {
-    id: EffectType.GRAYSCALE,
-    name: 'Grayscale',
-    description: 'Convert image to grayscale. Pixels darker than the threshold become black.',
-    params: [
-      { id: 'level', name: 'Threshold Level', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 1 },
-    ],
-    processor: (ctx, width, height, params) => {
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-      const level = params.level as number;
+        const gridSize = Math.max(1, params.gridSize as number);
+        const invert = params.invert as boolean;
+        const squareColor = params.squareColor as string;
+        const bgColor = params.bgColor as string;
 
-      for (let i = 0; i < data.length; i += 4) {
-        // Using standard luminance calculation
-        const brightness = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
-        const color = brightness > level ? brightness : 0;
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = squareColor;
+
+        for (let y = 0; y < height; y += gridSize) {
+            for (let x = 0; x < width; x += gridSize) {
+                let totalBrightness = 0;
+                let count = 0;
+
+                for (let blockY = y; blockY < y + gridSize; blockY++) {
+                    for (let blockX = x; blockX < x + gridSize; blockX++) {
+                        if (blockX < width && blockY < height) {
+                            const i = (blockY * width + blockX) * 4;
+                            const brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                            totalBrightness += brightness;
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    const avgBrightness = totalBrightness / count;
+                    let size = (avgBrightness / 255) * gridSize;
+                    if (invert) {
+                        size = gridSize - size;
+                    }
+
+                    const centeredX = x + (gridSize - size) / 2;
+                    const centeredY = y + (gridSize - size) / 2;
+                    ctx.fillRect(centeredX, centeredY, size, size);
+                }
+            }
+        }
+    }
+  },
+  {
+    id: EffectType.HALFTONE_CIRCLES,
+    name: 'Meio-tom (Círculos)',
+    description: 'Recria a imagem usando círculos de tamanhos variados.',
+    params: [
+        { id: 'gridSize', name: 'Tamanho da Grade', type: 'slider', min: 2, max: 40, step: 1, defaultValue: 10 },
+        { id: 'invert', name: 'Inverter', type: 'toggle', defaultValue: false },
+        { id: 'dotColor', name: 'Cor do Ponto', type: 'color', defaultValue: '#000000' },
+        { id: 'bgColor', name: 'Cor de Fundo', type: 'color', defaultValue: '#FFFFFF' },
+    ],
+    processor: (ctx, width, height, params) => {
+        const gridSize = Math.max(1, params.gridSize as number);
+        const invert = params.invert as boolean;
+        const dotColor = params.dotColor as string;
+        const bgColor = params.bgColor as string;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = dotColor;
+
+        for (let y = 0; y < height; y += gridSize) {
+            for (let x = 0; x < width; x += gridSize) {
+                let totalBrightness = 0;
+                let count = 0;
+
+                for (let blockY = y; blockY < y + gridSize; blockY++) {
+                    for (let blockX = x; blockX < x + gridSize; blockX++) {
+                        if (blockX < width && blockY < height) {
+                            const i = (blockY * width + blockX) * 4;
+                            const brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                            totalBrightness += brightness;
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    const avgBrightness = totalBrightness / count;
+                    let radius = (avgBrightness / 255) * (gridSize / 2);
+                    if (invert) {
+                        radius = (gridSize / 2) - radius;
+                    }
+
+                    const centerX = x + gridSize / 2;
+                    const centerY = y + gridSize / 2;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+    }
+  },
+  {
+    id: EffectType.HALFTONE_LINES,
+    name: 'Meio-tom (Linhas)',
+    description: 'Usa linhas de espessura variável para simular tons.',
+    params: [
+        { id: 'gridSize', name: 'Espaçamento', type: 'slider', min: 2, max: 40, step: 1, defaultValue: 8 },
+        { 
+            id: 'orientation', name: 'Orientação', type: 'select', 
+            defaultValue: 'vertical', 
+            options: [ { value: 'vertical', label: 'Vertical' }, { value: 'horizontal', label: 'Horizontal' } ]
+        },
+        { id: 'invert', name: 'Inverter', type: 'toggle', defaultValue: false },
+        { id: 'lineColor', name: 'Cor da Linha', type: 'color', defaultValue: '#000000' },
+        { id: 'bgColor', name: 'Cor de Fundo', type: 'color', defaultValue: '#FFFFFF' },
+    ],
+    processor: (ctx, width, height, params) => {
+        const gridSize = Math.max(1, params.gridSize as number);
+        const invert = params.invert as boolean;
+        const lineColor = params.lineColor as string;
+        const bgColor = params.bgColor as string;
+        const orientation = params.orientation as string;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = lineColor;
         
-        data[i] = color;     // Red
-        data[i + 1] = color; // Green
-        data[i + 2] = color; // Blue
-      }
-      ctx.putImageData(imageData, 0, 0);
+        const processBlock = (x: number, y: number) => {
+            let totalBrightness = 0;
+            let count = 0;
+            for (let blockY = y; blockY < y + gridSize; blockY++) {
+                for (let blockX = x; blockX < x + gridSize; blockX++) {
+                    if (blockX < width && blockY < height) {
+                        const i = (blockY * width + blockX) * 4;
+                        const brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                        totalBrightness += brightness;
+                        count++;
+                    }
+                }
+            }
+            if (count > 0) {
+                const avgBrightness = totalBrightness / count;
+                let thickness = (avgBrightness / 255) * gridSize;
+                if (invert) thickness = gridSize - thickness;
+
+                if (orientation === 'vertical') {
+                    const centeredX = x + (gridSize - thickness) / 2;
+                    ctx.fillRect(centeredX, y, thickness, gridSize);
+                } else { // Horizontal
+                    const centeredY = y + (gridSize - thickness) / 2;
+                    ctx.fillRect(x, centeredY, gridSize, thickness);
+                }
+            }
+        };
+
+        for (let y = 0; y < height; y += gridSize) {
+            for (let x = 0; x < width; x += gridSize) {
+                processBlock(x,y);
+            }
+        }
+    }
+  },
+  {
+    id: EffectType.HALFTONE_COLOR,
+    name: 'Meio-tom (Cores)',
+    description: 'Simula separação de cores com pontos CMYK.',
+    params: [
+        { id: 'gridSize', name: 'Tamanho da Grade', type: 'slider', min: 4, max: 40, step: 2, defaultValue: 12 },
+        { id: 'bgColor', name: 'Cor de Fundo', type: 'color', defaultValue: '#FFFFFF' },
+    ],
+    processor: (ctx, width, height, params) => {
+        const gridSize = Math.max(2, params.gridSize as number);
+        const bgColor = params.bgColor as string;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, width, height);
+        // FIX: 'darker' is not a valid globalCompositeOperation. Changed to 'darken'.
+        ctx.globalCompositeOperation = 'darken';
+
+        for (let y = 0; y < height; y += gridSize) {
+            for (let x = 0; x < width; x += gridSize) {
+                let totalR = 0, totalG = 0, totalB = 0, count = 0;
+
+                for (let blockY = y; blockY < y + gridSize; blockY++) {
+                    for (let blockX = x; blockX < x + gridSize; blockX++) {
+                        if (blockX < width && blockY < height) {
+                            const i = (blockY * width + blockX) * 4;
+                            totalR += data[i];
+                            totalG += data[i + 1];
+                            totalB += data[i + 2];
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    const avgR = totalR / count;
+                    const avgG = totalG / count;
+                    const avgB = totalB / count;
+                    
+                    const [c, m, y_cmyk, k] = rgbToCmyk(avgR, avgG, avgB);
+
+                    const halfGrid = gridSize / 2;
+                    const quarterGrid = gridSize / 4;
+                    const maxRadius = quarterGrid; 
+
+                    const centerX = x + halfGrid;
+                    const centerY = y + halfGrid;
+
+                    const cmy_k_factor = 1 - k;
+
+                    ctx.fillStyle = 'cyan';
+                    ctx.beginPath();
+                    ctx.arc(centerX - quarterGrid, centerY - quarterGrid, (c * cmy_k_factor) * maxRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.fillStyle = 'magenta';
+                    ctx.beginPath();
+                    ctx.arc(centerX + quarterGrid, centerY - quarterGrid, (m * cmy_k_factor) * maxRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'yellow';
+                    ctx.beginPath();
+                    ctx.arc(centerX - quarterGrid, centerY + quarterGrid, (y_cmyk * cmy_k_factor) * maxRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(centerX + quarterGrid, centerY + quarterGrid, k * maxRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        ctx.globalCompositeOperation = 'source-over';
     }
   },
   {
     id: EffectType.THRESHOLD,
-    name: 'Threshold',
-    description: 'Convert image to high-contrast black and white.',
+    name: 'Limiar',
+    description: 'Converte a imagem para preto e branco de alto contraste.',
     params: [
-      { id: 'level', name: 'Threshold Level', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
+      { id: 'level', name: 'Nível do Limiar', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
     ],
     processor: (ctx, width, height, params) => {
       const imageData = ctx.getImageData(0, 0, width, height);
@@ -294,23 +367,23 @@ export const EFFECTS: Effect[] = [
   },
   {
     id: EffectType.ASCII_ART,
-    name: 'ASCII Art',
-    description: 'Create stylized art with custom symbols, colors, and quantization.',
+    name: 'Arte ASCII',
+    description: 'Crie arte estilizada com símbolos, cores e quantização personalizados.',
     params: [
-      { id: 'charSize', name: 'Character Size', type: 'slider', min: 4, max: 20, step: 1, defaultValue: 8 },
-      { id: 'brightnessSteps', name: 'Brightness Steps', type: 'slider', min: 2, max: 15, step: 1, defaultValue: 7 },
-      { id: 'textColor', name: 'Text Color', type: 'color', defaultValue: '#E5E7EB' },
-      { id: 'bgColor', name: 'Background Color', type: 'color', defaultValue: '#111827' },
-      { id: 'boldFont', name: 'Bold Font', type: 'toggle', defaultValue: false },
+      { id: 'charSize', name: 'Tamanho do Caractere', type: 'slider', min: 4, max: 20, step: 1, defaultValue: 8 },
+      { id: 'brightnessSteps', name: 'Níveis de Brilho', type: 'slider', min: 2, max: 15, step: 1, defaultValue: 7 },
+      { id: 'textColor', name: 'Cor do Texto', type: 'color', defaultValue: '#E5E7EB' },
+      { id: 'bgColor', name: 'Cor de Fundo', type: 'color', defaultValue: '#111827' },
+      { id: 'boldFont', name: 'Fonte em Negrito', type: 'toggle', defaultValue: false },
       {
         id: 'symbols',
-        name: 'Symbol Set',
+        name: 'Conjunto de Símbolos',
         type: 'select',
         defaultValue: ' .:-=+*#%@',
         options: [
-          { value: ' .:-=+*#%@', label: 'Standard' },
-          { value: '░▒▓█', label: 'Blocks' },
-          { value: '▤▥▦▧▨▩█', label: 'Shades' },
+          { value: ' .:-=+*#%@', label: 'Padrão' },
+          { value: '░▒▓█', label: 'Blocos' },
+          { value: '▤▥▦▧▨▩█', label: 'Sombras' },
           { value: 'アイルオ', label: 'Matrix' },
         ]
       },
@@ -373,12 +446,12 @@ export const EFFECTS: Effect[] = [
   },
   {
     id: EffectType.NEON_SILHOUETTE,
-    name: 'Neon Silhouette',
-    description: 'Create a glowing silhouette effect.',
+    name: 'Silhueta Neon',
+    description: 'Crie um efeito de silhueta brilhante.',
     params: [
-      { id: 'invert', name: 'Invert Source', type: 'toggle', defaultValue: false },
-      { id: 'threshold', name: 'Threshold', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
-      { id: 'dotSize', name: 'Dot Size', type: 'slider', min: 1, max: 10, step: 1, defaultValue: 3 },
+      { id: 'invert', name: 'Inverter Original', type: 'toggle', defaultValue: false },
+      { id: 'threshold', name: 'Limiar', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
+      { id: 'dotSize', name: 'Tamanho do Ponto', type: 'slider', min: 1, max: 10, step: 1, defaultValue: 3 },
     ],
     processor: (ctx, width, height, params) => {
       const imageData = ctx.getImageData(0, 0, width, height);
@@ -411,6 +484,131 @@ export const EFFECTS: Effect[] = [
           }
       }
       ctx.shadowBlur = 0; // Reset shadow
+    }
+  },
+  {
+    id: EffectType.PHOTOCOPY,
+    name: 'Fotocópia',
+    description: 'Simula o grão, contraste e imperfeições de uma fotocopiadora.',
+    params: [
+      { id: 'contrast', name: 'Contraste', type: 'slider', min: 1, max: 200, step: 1, defaultValue: 100 },
+      { id: 'noise', name: 'Ruído', type: 'slider', min: 0, max: 100, step: 1, defaultValue: 30 },
+      { id: 'streaks', name: 'Manchas', type: 'slider', min: 0, max: 0.5, step: 0.01, defaultValue: 0.1 },
+      { id: 'darkColor', name: 'Cor Escura', type: 'color', defaultValue: '#1a1a1a' },
+      { id: 'lightColor', name: 'Cor Clara', type: 'color', defaultValue: '#f0f0f0' },
+    ],
+    processor: (ctx, width, height, params) => {
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const contrast = params.contrast as number;
+        const noise = params.noise as number;
+        const darkColor = hexToRgb(params.darkColor as string) || [0, 0, 0];
+        const lightColor = hexToRgb(params.lightColor as string) || [255, 255, 255];
+
+        // Contrast adjustment factor
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+        for (let i = 0; i < data.length; i += 4) {
+            // Grayscale
+            let brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+            
+            // Apply contrast
+            brightness = factor * (brightness - 128) + 128;
+            
+            // Add noise
+            const noiseFactor = (Math.random() - 0.5) * noise;
+            brightness += noiseFactor;
+
+            // Clamp and choose color
+            brightness = Math.max(0, Math.min(255, brightness));
+            
+            const useLight = brightness > 127;
+            data[i]     = useLight ? lightColor[0] : darkColor[0];
+            data[i + 1] = useLight ? lightColor[1] : darkColor[1];
+            data[i + 2] = useLight ? lightColor[2] : darkColor[2];
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // Add streaks
+        const streaks = params.streaks as number;
+        if (streaks > 0) {
+            for (let i = 0; i < 50 * streaks; i++) {
+                const x = Math.random() * width;
+                const w = (Math.random() * 2) + 0.5;
+                const alpha = Math.random() * 0.1 * streaks;
+                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+                ctx.fillRect(x, 0, w, height);
+            }
+        }
+    }
+  },
+  {
+    id: EffectType.CRT_MODULATION,
+    name: 'Modulação CRT',
+    description: 'Distorção de tela CRT com aberração cromática e scanlines.',
+    params: [
+        { id: 'amplitude', name: 'Amplitude', type: 'slider', min: 0, max: 50, step: 1, defaultValue: 5 },
+        { id: 'frequency', name: 'Frequência', type: 'slider', min: 0.01, max: 0.5, step: 0.01, defaultValue: 0.1 },
+        { id: 'aberration', name: 'Aberração', type: 'slider', min: 0, max: 20, step: 1, defaultValue: 2 },
+        { id: 'scanlineOpacity', name: 'Scanlines', type: 'slider', min: 0, max: 0.5, step: 0.01, defaultValue: 0.15 },
+        { id: 'glow', name: 'Brilho', type: 'slider', min: 0, max: 20, step: 1, defaultValue: 10 },
+        { id: 'glowColor', name: 'Cor do Brilho', type: 'color', defaultValue: '#818cf8' },
+    ],
+    processor: (ctx, width, height, params) => {
+        const originalImageData = ctx.getImageData(0, 0, width, height);
+        const originalData = originalImageData.data;
+        const processedImageData = ctx.createImageData(width, height);
+        const processedData = processedImageData.data;
+
+        const amplitude = params.amplitude as number;
+        const frequency = params.frequency as number;
+        const aberration = params.aberration as number;
+
+        for (let y = 0; y < height; y++) {
+            const offsetY = Math.sin(y * frequency) * amplitude;
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                
+                // Get displaced R, G, B channels
+                const [r] = getPixel(originalData, width, x - (offsetY + aberration), y);
+                const [g] = getPixel(originalData, width, x - offsetY, y);
+                const [b] = getPixel(originalData, width, x - (offsetY - aberration), y);
+
+                processedData[i]     = r;
+                processedData[i + 1] = g;
+                processedData[i + 2] = b;
+                processedData[i + 3] = 255;
+            }
+        }
+
+        // Apply scanlines
+        const scanlineOpacity = params.scanlineOpacity as number;
+        if (scanlineOpacity > 0) {
+            for (let y = 0; y < height; y += 2) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+                    processedData[i]   *= (1 - scanlineOpacity);
+                    processedData[i+1] *= (1 - scanlineOpacity);
+                    processedData[i+2] *= (1 - scanlineOpacity);
+                }
+            }
+        }
+        
+        ctx.clearRect(0, 0, width, height);
+        
+        // Apply glow
+        const glow = params.glow as number;
+        const glowColor = params.glowColor as string;
+        if (glow > 0) {
+            ctx.shadowBlur = glow;
+            ctx.shadowColor = glowColor;
+        }
+
+        ctx.putImageData(processedImageData, 0, 0);
+
+        // Reset glow for subsequent draws
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
     }
   }
 ];

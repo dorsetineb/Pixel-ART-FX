@@ -83,7 +83,7 @@ const ImageProcessor: React.FC = () => {
             selectedEffect.processor(processedCtx, width, height, effectParams);
         } catch (e) {
             console.error("Processing failed:", e);
-            setError("Sorry, an error occurred while applying the effect.");
+            setError("Desculpe, ocorreu um erro ao aplicar o efeito.");
         } finally {
             setIsLoading(false);
         }
@@ -105,16 +105,16 @@ const ImageProcessor: React.FC = () => {
           setOriginalImage(img);
         };
         img.onerror = () => {
-            setError("Could not load the image file. It might be corrupted or in an unsupported format.");
+            setError("Não foi possível carregar o arquivo de imagem. Pode estar corrompido ou em um formato não suportado.");
         }
         img.src = e.target?.result as string;
       };
       reader.onerror = () => {
-        setError("Failed to read the selected file.");
+        setError("Falha ao ler o arquivo selecionado.");
       }
       reader.readAsDataURL(file);
     } else if (file) {
-        setError("Please select a valid image file (e.g., JPG, PNG, GIF).");
+        setError("Por favor, selecione um arquivo de imagem válido (ex: JPG, PNG, GIF).");
     }
   };
 
@@ -132,7 +132,7 @@ const ImageProcessor: React.FC = () => {
 
   const handleSavePreset = () => {
     if (!newPresetName.trim()) {
-      setError("Preset name cannot be empty.");
+      setError("O nome da predefinição não pode estar vazio.");
       return;
     }
     const newPreset: Preset = {
@@ -231,8 +231,8 @@ const ImageProcessor: React.FC = () => {
           onClick={() => fileInputRef.current?.click()}
         >
           <IconUpload className="w-16 h-16 text-gray-500 mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-300">Click to Upload Image</h2>
-          <p className="text-gray-400 mt-2">or drag and drop here</p>
+          <h2 className="text-2xl font-semibold text-gray-300">Clique para Enviar uma Imagem</h2>
+          <p className="text-gray-400 mt-2">ou arraste e solte aqui</p>
           <input
             type="file"
             ref={fileInputRef}
@@ -246,21 +246,25 @@ const ImageProcessor: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div>
               <h3 className="text-xl font-semibold mb-3 text-gray-400">Original</h3>
-              <canvas ref={originalCanvasRef} className="w-full h-auto rounded-lg shadow-lg bg-gray-800" />
+              <div className="w-full rounded-lg shadow-lg bg-gray-800 overflow-hidden">
+                <canvas ref={originalCanvasRef} className="w-full h-auto block" />
+              </div>
             </div>
-            <div className="relative">
-              <h3 className="text-xl font-semibold mb-3 text-gray-400">Processed</h3>
-              <canvas ref={processedCanvasRef} className="w-full h-auto rounded-lg shadow-lg bg-gray-800" />
-              {isLoading && (
-                 <div className="absolute inset-0 bg-black bg-opacity-70 flex justify-center items-center rounded-lg">
-                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin" style={{borderTopColor: '#22d3ee'}}></div>
-                 </div>
-              )}
+            <div>
+              <h3 className="text-xl font-semibold mb-3 text-gray-400">Processada</h3>
+              <div className="relative w-full rounded-lg shadow-lg bg-gray-800 overflow-hidden">
+                <canvas ref={processedCanvasRef} className="w-full h-auto block" />
+                {isLoading && (
+                   <div className="absolute inset-0 bg-black bg-opacity-70 flex justify-center items-center rounded-lg">
+                      <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin" style={{borderTopColor: '#22d3ee'}}></div>
+                   </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl">
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-white mb-4">Presets</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">Predefinições</h3>
                 {presets.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {presets.map((preset) => (
@@ -274,7 +278,7 @@ const ImageProcessor: React.FC = () => {
                         <button
                           onClick={() => handleDeletePreset(preset.name)}
                           className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-500"
-                          aria-label={`Delete ${preset.name} preset`}
+                          aria-label={`Excluir predefinição ${preset.name}`}
                         >
                           <IconTrash className="w-4 h-4" />
                         </button>
@@ -282,15 +286,15 @@ const ImageProcessor: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-sm">No presets saved yet. Adjust controls and save one!</p>
+                  <p className="text-gray-400 text-sm">Nenhuma predefinição salva ainda. Ajuste os controles e salve uma!</p>
                 )}
               </div>
               
               <div className="flex items-center gap-4 mb-4">
-                 <h2 className="text-3xl font-bold">Effect Controls</h2>
+                 <h2 className="text-3xl font-bold">Controles de Efeito</h2>
                  {!isSavingPreset && (
                     <Button onClick={() => setIsSavingPreset(true)} variant="secondary" icon={<IconSave className="w-5 h-5 mr-2" />}>
-                        Save as Preset
+                        Salvar como Predefinição
                     </Button>
                  )}
               </div>
@@ -299,15 +303,15 @@ const ImageProcessor: React.FC = () => {
                 <div className="bg-gray-700 p-4 rounded-lg mb-6 flex flex-col sm:flex-row items-center gap-3">
                     <div className="w-full sm:flex-grow">
                         <TextInput
-                            label="Preset Name"
+                            label="Nome da Predefinição"
                             value={newPresetName}
                             onChange={setNewPresetName}
-                            placeholder="e.g., Retro Vibe"
+                            placeholder="ex., Clima Retrô"
                         />
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={handleSavePreset}>Confirm Save</Button>
-                        <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancel</Button>
+                        <Button onClick={handleSavePreset}>Confirmar</Button>
+                        <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancelar</Button>
                     </div>
                 </div>
               )}
@@ -334,10 +338,10 @@ const ImageProcessor: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row gap-4">
                  <Button onClick={handleDownload} icon={<IconDownload className="w-5 h-5 mr-2"/>}>
-                   Download Image
+                   Baixar Imagem
                  </Button>
                  <Button onClick={() => fileInputRef.current?.click()} variant="secondary" icon={<IconUpload className="w-5 h-5 mr-2"/>}>
-                   Upload New Image
+                   Enviar Nova Imagem
                  </Button>
                  <input
                     type="file"
@@ -352,7 +356,7 @@ const ImageProcessor: React.FC = () => {
       )}
       {error && (
         <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative" role="alert">
-            <strong className="font-bold">Error: </strong>
+            <strong className="font-bold">Erro: </strong>
             <span className="block sm:inline">{error}</span>
         </div>
       )}

@@ -1,5 +1,5 @@
 {
   "name": "Fotif-AI",
-  "description": "Fotif-AI is an application to apply various pixelated and dithered effects to user-uploaded images, transforming them into retro-style art.",
+  "description": "Fotif-AI é um aplicativo para aplicar vários efeitos pixelados e pontilhados a imagens enviadas pelo usuário, transformando-as em arte estilo retrô.",
   "requestFramePermissions": []
 }
