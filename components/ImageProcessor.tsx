@@ -264,9 +264,8 @@ const ImageProcessor: React.FC = () => {
           </div>
           <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl">
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-white mb-4">Predefinições</h3>
-                {presets.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
+                {presets.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {presets.map((preset) => (
                       <div key={preset.name} className="group relative">
                         <button
@@ -285,36 +284,31 @@ const ImageProcessor: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {isSavingPreset ? (
+                  <div className="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row items-center gap-3">
+                      <div className="w-full sm:flex-grow">
+                          <TextInput
+                              label="Nome da Predefinição"
+                              value={newPresetName}
+                              onChange={setNewPresetName}
+                              placeholder="ex., Clima Retrô"
+                          />
+                      </div>
+                      <div className="flex gap-2">
+                          <Button onClick={handleSavePreset}>Confirmar</Button>
+                          <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancelar</Button>
+                      </div>
+                  </div>
                 ) : (
-                  <p className="text-gray-400 text-sm">Nenhuma predefinição salva ainda. Ajuste os controles e salve uma!</p>
+                  <Button onClick={() => setIsSavingPreset(true)} variant="secondary" icon={<IconSave className="w-5 h-5 mr-2" />}>
+                      Salvar como Predefinição
+                  </Button>
                 )}
               </div>
               
-              <div className="flex items-center gap-4 mb-4">
-                 <h2 className="text-3xl font-bold">Controles de Efeito</h2>
-                 {!isSavingPreset && (
-                    <Button onClick={() => setIsSavingPreset(true)} variant="secondary" icon={<IconSave className="w-5 h-5 mr-2" />}>
-                        Salvar como Predefinição
-                    </Button>
-                 )}
-              </div>
-              
-              {isSavingPreset && (
-                <div className="bg-gray-700 p-4 rounded-lg mb-6 flex flex-col sm:flex-row items-center gap-3">
-                    <div className="w-full sm:flex-grow">
-                        <TextInput
-                            label="Nome da Predefinição"
-                            value={newPresetName}
-                            onChange={setNewPresetName}
-                            placeholder="ex., Clima Retrô"
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        <Button onClick={handleSavePreset}>Confirmar</Button>
-                        <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancelar</Button>
-                    </div>
-                </div>
-              )}
+              <h2 className="text-3xl font-bold mb-4">Controles de Efeito</h2>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                 {EFFECTS.map(effect => (
