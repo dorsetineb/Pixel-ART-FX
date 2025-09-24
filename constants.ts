@@ -44,14 +44,21 @@ const rgbToCmyk = (r: number, g: number, b: number): [number, number, number, nu
 
 export const EFFECTS: Effect[] = [
   {
-    id: EffectType.PIXELATE,
-    name: 'Pixelar',
-    description: 'Agrupe pixels em blocos de cores sólidas.',
+    id: EffectType.DUOTONE_PIXELATE,
+    name: 'Pixelado Duotônico',
+    description: 'Transforma a imagem em arte pixelada de 2 cores com base em um limiar de brilho.',
     params: [
       { id: 'pixelSize', name: 'Tamanho do Pixel', type: 'slider', min: 2, max: 50, step: 1, defaultValue: 10 },
+      { id: 'threshold', name: 'Limiar de Brilho', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
+      { id: 'darkColor', name: 'Cor Escura', type: 'color', defaultValue: '#1f2e69' },
+      { id: 'lightColor', name: 'Cor Clara', type: 'color', defaultValue: '#d3e099' },
     ],
     processor: (ctx, width, height, params) => {
         const pixelSize = Math.max(1, params.pixelSize as number);
+        const threshold = params.threshold as number;
+        const darkColor = params.darkColor as string;
+        const lightColor = params.lightColor as string;
+        
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
@@ -59,30 +66,25 @@ export const EFFECTS: Effect[] = [
 
         for (let y = 0; y < height; y += pixelSize) {
             for (let x = 0; x < width; x += pixelSize) {
-                let totalR = 0;
-                let totalG = 0;
-                let totalB = 0;
+                let totalBrightness = 0;
                 let count = 0;
 
-                // Iterate over the block to calculate the average color
+                // Iterate over the block to calculate the average brightness
                 for (let blockY = y; blockY < y + pixelSize; blockY++) {
                     for (let blockX = x; blockX < x + pixelSize; blockX++) {
                         if (blockX < width && blockY < height) {
                             const i = (blockY * width + blockX) * 4;
-                            totalR += data[i];
-                            totalG += data[i + 1];
-                            totalB += data[i + 2];
+                            const brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                            totalBrightness += brightness;
                             count++;
                         }
                     }
                 }
 
                 if (count > 0) {
-                    const avgR = Math.floor(totalR / count);
-                    const avgG = Math.floor(totalG / count);
-                    const avgB = Math.floor(totalB / count);
-
-                    ctx.fillStyle = `rgb(${avgR}, ${avgG}, ${avgB})`;
+                    const avgBrightness = totalBrightness / count;
+                    
+                    ctx.fillStyle = avgBrightness < threshold ? darkColor : lightColor;
                     ctx.fillRect(x, y, pixelSize, pixelSize);
                 }
             }
@@ -341,31 +343,6 @@ export const EFFECTS: Effect[] = [
     }
   },
   {
-    id: EffectType.THRESHOLD,
-    name: 'Limiar',
-    description: 'Converte a imagem para preto e branco de alto contraste.',
-    params: [
-      { id: 'level', name: 'Nível do Limiar', type: 'slider', min: 1, max: 254, step: 1, defaultValue: 128 },
-    ],
-    processor: (ctx, width, height, params) => {
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-      const level = params.level as number;
-
-      for (let i = 0; i < data.length; i += 4) {
-        // Using standard luminance calculation
-        const brightness = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
-        const color = brightness > level ? 255 : 0;
-        
-        data[i] = color;     // Red
-        data[i + 1] = color; // Green
-        data[i + 2] = color; // Blue
-        // Alpha channel (data[i + 3]) remains untouched
-      }
-      ctx.putImageData(imageData, 0, 0);
-    }
-  },
-  {
     id: EffectType.ASCII_ART,
     name: 'Arte ASCII',
     description: 'Crie arte estilizada com símbolos, cores e quantização personalizados.',
@@ -484,62 +461,6 @@ export const EFFECTS: Effect[] = [
           }
       }
       ctx.shadowBlur = 0; // Reset shadow
-    }
-  },
-  {
-    id: EffectType.PHOTOCOPY,
-    name: 'Fotocópia',
-    description: 'Simula o grão, contraste e imperfeições de uma fotocopiadora.',
-    params: [
-      { id: 'contrast', name: 'Contraste', type: 'slider', min: 1, max: 200, step: 1, defaultValue: 100 },
-      { id: 'noise', name: 'Ruído', type: 'slider', min: 0, max: 100, step: 1, defaultValue: 30 },
-      { id: 'streaks', name: 'Manchas', type: 'slider', min: 0, max: 0.5, step: 0.01, defaultValue: 0.1 },
-      { id: 'darkColor', name: 'Cor Escura', type: 'color', defaultValue: '#1a1a1a' },
-      { id: 'lightColor', name: 'Cor Clara', type: 'color', defaultValue: '#f0f0f0' },
-    ],
-    processor: (ctx, width, height, params) => {
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
-        const contrast = params.contrast as number;
-        const noise = params.noise as number;
-        const darkColor = hexToRgb(params.darkColor as string) || [0, 0, 0];
-        const lightColor = hexToRgb(params.lightColor as string) || [255, 255, 255];
-
-        // Contrast adjustment factor
-        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-
-        for (let i = 0; i < data.length; i += 4) {
-            // Grayscale
-            let brightness = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-            
-            // Apply contrast
-            brightness = factor * (brightness - 128) + 128;
-            
-            // Add noise
-            const noiseFactor = (Math.random() - 0.5) * noise;
-            brightness += noiseFactor;
-
-            // Clamp and choose color
-            brightness = Math.max(0, Math.min(255, brightness));
-            
-            const useLight = brightness > 127;
-            data[i]     = useLight ? lightColor[0] : darkColor[0];
-            data[i + 1] = useLight ? lightColor[1] : darkColor[1];
-            data[i + 2] = useLight ? lightColor[2] : darkColor[2];
-        }
-        ctx.putImageData(imageData, 0, 0);
-
-        // Add streaks
-        const streaks = params.streaks as number;
-        if (streaks > 0) {
-            for (let i = 0; i < 50 * streaks; i++) {
-                const x = Math.random() * width;
-                const w = (Math.random() * 2) + 0.5;
-                const alpha = Math.random() * 0.1 * streaks;
-                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-                ctx.fillRect(x, 0, w, height);
-            }
-        }
     }
   },
   {
