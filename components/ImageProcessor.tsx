@@ -235,42 +235,52 @@ const ImageProcessor: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-x-8 items-start">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-4rem)]">
-                {/* Original Image Viewport */}
-                <div
-                    ref={originalViewportRef}
-                    className="h-full rounded-lg overflow-hidden cursor-grab bg-gray-900/50 relative"
-                    onMouseDown={handlePanStart}
-                    onMouseMove={handlePanMove}
-                    onMouseUp={handlePanEnd}
-                    onMouseLeave={handlePanEnd}
-                    aria-label="Original image viewport. Click and drag to pan."
-                >
-                    <canvas
-                        ref={originalCanvasRef}
-                        className="block max-w-none absolute top-0 left-0"
-                        style={{
-                            transform: `translate(${pan.x}px, ${pan.y}px)`,
-                            transition: isPanning ? 'none' : 'transform 0.2s ease-out'
-                        }}
-                    />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Original Image Column */}
+                <div className="flex flex-col">
+                    <h3 className="text-center text-lg font-semibold mb-2 text-gray-300">Original</h3>
+                    <div
+                        ref={originalViewportRef}
+                        className="h-[70vh] rounded-lg overflow-hidden cursor-grab bg-gray-900/50 relative"
+                        onMouseDown={handlePanStart}
+                        onMouseMove={handlePanMove}
+                        onMouseUp={handlePanEnd}
+                        onMouseLeave={handlePanEnd}
+                        aria-label="Original image viewport. Click and drag to pan."
+                    >
+                        <canvas
+                            ref={originalCanvasRef}
+                            className="block max-w-none absolute top-0 left-0"
+                            style={{
+                                transform: `translate(${pan.x}px, ${pan.y}px)`,
+                                transition: isPanning ? 'none' : 'transform 0.2s ease-out'
+                            }}
+                        />
+                    </div>
+                    <p className="text-center text-sm text-gray-400 mt-2">arraste a imagem original para visualizar o restante</p>
                 </div>
     
-                {/* Processed Image Viewport */}
-                <div className="h-full rounded-lg overflow-hidden bg-gray-900/50 relative" aria-label="Processed image viewport.">
-                     <canvas
-                        ref={processedCanvasRef}
-                        className="block max-w-none absolute top-0 left-0"
-                        style={{
-                            transform: `translate(${pan.x}px, ${pan.y}px)`,
-                            transition: isPanning ? 'none' : 'transform 0.2s ease-out'
-                        }}
-                    />
-                    {isLoading && (
-                       <div className="absolute inset-0 bg-black bg-opacity-70 flex justify-center items-center rounded-lg">
-                          <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin" style={{borderTopColor: '#22d3ee'}}></div>
-                       </div>
-                    )}
+                {/* Processed Image Column */}
+                <div className="flex flex-col">
+                    <h3 className="text-center text-lg font-semibold mb-2 text-gray-300">Processada</h3>
+                    <div className="h-[70vh] rounded-lg overflow-hidden bg-gray-900/50 relative" aria-label="Processed image viewport.">
+                         <canvas
+                            ref={processedCanvasRef}
+                            className="block max-w-none absolute top-0 left-0"
+                            style={{
+                                transform: `translate(${pan.x}px, ${pan.y}px)`,
+                                transition: isPanning ? 'none' : 'transform 0.2s ease-out'
+                            }}
+                        />
+                        {isLoading && (
+                           <div className="absolute inset-0 bg-black bg-opacity-70 flex justify-center items-center rounded-lg">
+                              <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin" style={{borderTopColor: '#22d3ee'}}></div>
+                           </div>
+                        )}
+                    </div>
+                    <p className="text-center text-sm text-gray-400 mt-2 invisible" aria-hidden="true">
+                        arraste a imagem original para visualizar o restante
+                    </p>
                 </div>
             </div>
 
