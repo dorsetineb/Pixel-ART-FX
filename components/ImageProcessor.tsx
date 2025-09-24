@@ -312,6 +312,16 @@ const ImageProcessor: React.FC = () => {
                         {effect.name}
                     </button>
                     ))}
+                    {!isSavingPreset && (
+                        <button 
+                            onClick={() => setIsSavingPreset(true)} 
+                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500"
+                            aria-label="Salvar predefinição atual"
+                        >
+                            <IconSave className="w-4 h-4" />
+                            Salvar Predefinição
+                        </button>
+                    )}
                 </div>
               </div>
 
@@ -321,23 +331,38 @@ const ImageProcessor: React.FC = () => {
 
               <div className="mt-auto pt-6 border-t border-gray-700 flex flex-col gap-4">
                 {isSavingPreset && (
-                  <div className="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row items-center gap-3">
-                      <div className="w-full sm:flex-grow">
-                          <TextInput label="Nome da Predefinição" value={newPresetName} onChange={setNewPresetName} placeholder="ex., Clima Retrô"/>
-                      </div>
-                      <div className="flex gap-2">
-                          <Button onClick={handleSavePreset}>Confirmar</Button>
-                          <Button onClick={() => { setIsSavingPreset(false); setError(null); }} variant="secondary">Cancelar</Button>
-                      </div>
+                  <div className="bg-gray-700/50 p-4 rounded-lg space-y-4">
+                    <div className="flex items-center gap-3">
+                      <label htmlFor="preset-name-input" className="text-sm font-medium text-gray-300 whitespace-nowrap">
+                        Nome da Predefinição
+                      </label>
+                      <input
+                        id="preset-name-input"
+                        type="text"
+                        value={newPresetName}
+                        onChange={(e) => setNewPresetName(e.target.value)}
+                        placeholder="ex., Clima Retrô"
+                        className="w-full bg-gray-700 border border-gray-600 text-gray-200 rounded-lg p-2.5 focus:ring-cyan-500 focus:border-cyan-500 transition"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                       <button
+                        onClick={() => { setIsSavingPreset(false); setError(null); }}
+                        className="px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleSavePreset}
+                        className="px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 bg-cyan-500 text-white shadow-md"
+                      >
+                        Confirmar
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 <div className="flex flex-wrap gap-4 justify-end">
-                    {!isSavingPreset && (
-                        <Button onClick={() => setIsSavingPreset(true)} variant="secondary" icon={<IconSave className="w-5 h-5 mr-2" />}>
-                            Salvar Predefinição
-                        </Button>
-                    )}
                     <Button onClick={handleDownload} icon={<IconDownload className="w-5 h-5 mr-2"/>}>
                         Baixar Imagem
                     </Button>
